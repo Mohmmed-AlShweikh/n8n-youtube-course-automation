@@ -1,0 +1,398 @@
+{
+  "name": "YouTube Approval Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "id": "f0285d9b-b2d2-48be-9dfe-c4f681a40c78",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1344,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const q = $json.callback_query;\nif (!q || !q.data) return [];\nconst [action, jobId] = String(q.data).split(':');\nreturn [{ json: {\n  action, jobId,\n  chatId: q.message.chat.id,\n  messageId: q.message.message_id\n}}];"
+      },
+      "id": "6b547168-55c8-4386-89c3-5ea9a3a9e0c7",
+      "name": "Parse Click",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "={{ $('Parse Click').first().json.chatId }}",
+        "messageId": "={{ $('Parse Click').first().json.messageId }}",
+        "text": "⏳ استلمت ردك، جاري التنفيذ...",
+        "additionalFields": {}
+      },
+      "id": "d6c6f8aa-e5dd-4269-a8be-55a9a3f0e13b",
+      "name": "Edit Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -896,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Pending"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "job_id",
+              "lookupValue": "={{ $('Parse Click').first().json.jobId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "814b3b31-ce50-4939-bfd1-5712f40a630e",
+      "name": "Get Pending",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -672,
+        128
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.video_url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2ecc5b07-d276-4727-a366-29642b6f82d9",
+      "name": "Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $('Parse Click').first().json.action }}",
+              "rightValue": "pub",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7da7a52f-5ecd-4e67-834a-bbe262aebf10",
+      "name": "Publish?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Get Pending').first().json.video_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "eacf8782-0841-4409-b6c7-3c580f7b580c",
+      "name": "Download MP4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $('Get Pending').first().json.title }}",
+        "regionCode": "US",
+        "categoryId": "27",
+        "options": {
+          "defaultLanguage": "ar",
+          "description": "={{ $('Get Pending').first().json.description }}",
+          "privacyStatus": "={{ $('Get Pending').first().json.privacy }}",
+          "selfDeclaredMadeForKids": false,
+          "tags": "={{ $('Get Pending').first().json.tags }}"
+        }
+      },
+      "id": "88a33412-ad0c-40ad-90f3-f5af77e3066c",
+      "name": "YouTube Upload",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Get Pending').first().json;\nconst yt = $input.first().json;\nconst id = yt.id || yt.videoId || yt.uploadId;\nreturn [{ json: {\n  topic: p.topic,\n  title: p.title,\n  youtube_url: id ? 'https://youtu.be/' + id : 'uploaded-id-unknown',\n  date: new Date().toISOString().slice(0, 10)\n}}];"
+      },
+      "id": "30c4cb79-9625-4f78-9ced-666c1f9a5fbb",
+      "name": "Prepare Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "1a1e1ef2-0bc8-42da-b806-d4c5fc3ce676",
+      "name": "Log to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Click').first().json.chatId }}",
+        "text": "=✅ تم النشر\n\n{{ $('Prepare Log').first().json.title }}\n{{ $('Prepare Log').first().json.youtube_url }}\nالخصوصية: {{ $('Get Pending').first().json.privacy }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "d5568ed9-0735-4e73-9bc3-27f0955fd010",
+      "name": "Telegram Published",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Click').first().json.chatId }}",
+        "text": "=❌ لم يتم النشر\n\n{{ $('Get Pending').first().json.title }}\n\nما انسجّل الدرس، وبالتشغيل الجاي بيجرّب نفس الدرس بسكربت جديد.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "dc6d4c13-cbce-49ae-8a7f-7b64c21ac747",
+      "name": "Telegram Cancelled",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        240
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Click",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Click": {
+      "main": [
+        [
+          {
+            "node": "Edit Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Message": {
+      "main": [
+        [
+          {
+            "node": "Get Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending": {
+      "main": [
+        [
+          {
+            "node": "Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Found?": {
+      "main": [
+        [
+          {
+            "node": "Publish?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish?": {
+      "main": [
+        [
+          {
+            "node": "Download MP4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram Cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download MP4": {
+      "main": [
+        [
+          {
+            "node": "YouTube Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube Upload": {
+      "main": [
+        [
+          {
+            "node": "Prepare Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Log": {
+      "main": [
+        [
+          {
+            "node": "Log to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Telegram Published",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Hebron"
+  },
+  "active": false
+}

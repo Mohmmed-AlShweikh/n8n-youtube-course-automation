@@ -1,0 +1,693 @@
+{
+  "name": "YouTube n8n Course",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 11 * * *"
+            }
+          ]
+        }
+      },
+      "id": "13cf27e1-14db-4efa-b41f-c62beff09e44",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "privacy",
+              "value": "private",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "requireApproval",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "374efbea-31ca-40a3-8f63-0d156ffd9dff",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "options": {}
+      },
+      "id": "ff41da2a-98b8-4c3f-96bd-5c880ce112b0",
+      "name": "Get Past Topics",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        656,
+        2240
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const MODEL = 'gemini-3.5-flash';   // غيّر الموديل من هون عند الحاجة\nconst LESSONS = [\n  'ما هو n8n ولماذا هو من أقوى أدوات الأتمتة',\n  'تثبيت n8n: السحابة مقابل الاستضافة الذاتية',\n  'واجهة n8n: الـ Canvas والـ Nodes',\n  'أول Workflow: Manual Trigger وSet node',\n  'فهم البيانات: Items وصيغة JSON',\n  'التعبيرات Expressions: كيف تستدعي بيانات من node سابقة',\n  'الـ Triggers: Schedule وWebhook',\n  'HTTP Request node: الاتصال بأي API',\n  'الـ Credentials: ربط حساباتك بأمان',\n  'التحكم بالمسار: IF وSwitch',\n  'التكرار والدمج: Loop Over Items وMerge',\n  'Code node: JavaScript لتحويل البيانات',\n  'معالجة الأخطاء وError Trigger',\n  'التعامل مع Google Sheets',\n  'إرسال واستقبال الإيميلات مع Gmail',\n  'بناء بوت تيليجرام بسيط',\n  'ما هو الـ AI Agent',\n  'الـ AI Agent node وربطه بنموذج لغوي Chat Model',\n  'الـ Memory: ذاكرة المحادثة للوكيل',\n  'الـ Tools: إعطاء الوكيل أدوات',\n  'كتابة System Prompt فعّال للوكيل',\n  'Structured Output: مخرجات JSON من الذكاء الاصطناعي',\n  'مفهوم RAG وقواعد المعرفة',\n  'بناء RAG: المستندات والـ Embeddings والـ Vector Store',\n  'بوت دعم عملاء يعتمد على RAG',\n  'أتمتة المحتوى: توليد منشورات وجدولتها',\n  'وكيل يلخص الإيميلات ويكتب الردود',\n  'ربط عدة وكلاء معا Multi-agent',\n  'أفضل الممارسات: الأمان والمراقبة',\n  'نشر مشروعك وتسعير خدمات الأتمتة'\n];\n\n// نشيل أي مسافات زايدة من أسماء أعمدة الـ Sheet\nconst rows = $input.all().map(i =>\n  Object.fromEntries(Object.entries(i.json).map(([k, v]) => [String(k).trim(), v])));\nconst doneRows = rows.filter(r => r.youtube_url);\n\n// رقم الدرس = عدد الدروس المنشورة فعلا + 1\nconst n = doneRows.length + 1;\nif (n > LESSONS.length) throw new Error('الكورس خلص: تم نشر كل الدروس (' + LESSONS.length + ')');\n\n// رابط الدرس السابق (آخر صف فيه رابط حقيقي)\nconst last = doneRows[doneRows.length - 1];\nconst prevUrl = last && /^https?:\\/\\//.test(String(last.youtube_url)) ? String(last.youtube_url) : '';\n\nconst title = LESSONS[n - 1];\nconst prev = n > 1 ? LESSONS[n - 2] : 'لا يوجد (هذا أول درس)';\nconst next = n < LESSONS.length ? LESSONS[n] : 'لا يوجد (هذا آخر درس)';\n\nconst system = 'أنت مدرّب أتمتة محترف تقدّم كورسا بالعربية على يوتيوب شورتس. تكتب معلومات دقيقة فقط، ولا تخترع ميزات أو أسماء أو أرقام. ترجع JSON صالح فقط بدون أي نص إضافي.';\n\nconst user = `أنت تقدّم كورسا قصيرا بعنوان: تعلّم أتمتة الذكاء الاصطناعي مع n8n من الصفر.\nهذا الدرس رقم ${n} من ${LESSONS.length}: ${title}\nالدرس السابق: ${prev}\nالدرس القادم: ${next}\n\nاكتب سكربت فيديو قصير مدته 35 إلى 45 ثانية بالعربية الفصحى المبسطة يشرح فكرة واحدة فقط من هذا الدرس بوضوح.\nالشروط:\n- المشهد الأول: ترحيب سريع برقم الدرس واسمه، مع سؤال أو مشكلة تشدّ المشاهد.\n- من 6 إلى 7 مشاهد، كل مشهد جملة واحدة لا تزيد عن 14 كلمة.\n- اشرح الفكرة بمثال عملي بسيط واحد على الأقل.\n- المشهد الأخير: ملخص بجملة واحدة، ثم تشويق للدرس القادم، ثم دعوة للمتابعة.\n- معلومات دقيقة فقط عن n8n. لا تذكر أرقام إصدارات أو أسماء حقول أو أزرار إذا لم تكن متأكدا منها.\n- اكتب المصطلحات التقنية بحروف عربية مفهومة عند النطق (مثل: ووركفلو، نود، ويب هوك، إيه بي آي)، وتبقى كلمة n8n كما هي.\n- keywords: كلمتان أو ثلاث بالإنجليزية لمشهد بصري تقني عام، اختر من أمثلة مثل: \"typing on laptop\", \"code on screen\", \"data network\", \"server room\", \"analytics dashboard\", \"robot arm\", \"artificial intelligence\", \"cloud technology\", \"smartphone app\", \"computer circuit\", \"gears machine\", \"business meeting\".\n- description: جملتان عن محتوى الدرس.\n- tags: من 4 إلى 6 كلمات عربية.\n\nصيغة الإخراج JSON فقط:\n{\"description\":\"\",\"tags\":[\"\"],\"scenes\":[{\"text\":\"\",\"keywords\":\"\"}]}`;\n\nreturn [{ json: {\n  lessonNo: n, lessonTitle: title, prevTitle: prev, prevUrl, model: MODEL,\n  groqBody: {\n    systemInstruction: { parts: [{ text: system }] },\n    contents: [{ role: 'user', parts: [{ text: user }] }],\n    generationConfig: { temperature: 0.7, maxOutputTokens: 8000, responseMimeType: 'application/json' }\n  }\n}}];"
+      },
+      "id": "c3c0cc59-f1bb-4752-8e06-f699bf8f2433",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/{{ $json.model }}:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.groqBody) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "b2f518ac-c0ba-44e3-bb28-9be70522d2f9",
+      "name": "Google Script",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1104,
+        2240
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const parts = $input.first().json.candidates?.[0]?.content?.parts || [];\nconst raw = parts.map(p => p.text || '').join('').replace(/```json|```/g, '').trim();\nlet d;\ntry { d = JSON.parse(raw); }\ncatch (e) { throw new Error('Gemini رجّع JSON غير صالح: ' + String(raw).slice(0, 200)); }\nif (!Array.isArray(d.scenes) || d.scenes.length < 4) throw new Error('عدد المشاهد غير كافي');\n\nconst L = $('Build Prompt').first().json;\n\n// رابط الدرس السابق بالوصف\nconst prevLine = (L.lessonNo > 1 && L.prevUrl)\n  ? '\\n\\nالدرس السابق: ' + L.prevTitle + '\\n' + L.prevUrl\n  : '';\n\nconst meta = {\n  topic: L.lessonTitle,\n  title: ('كورس n8n | الدرس ' + L.lessonNo + ': ' + L.lessonTitle).slice(0, 95),\n  description: String(d.description || '') +\n    '\\n\\nالدرس ' + L.lessonNo + ' من كورس تعلّم أتمتة الذكاء الاصطناعي مع n8n من الصفر.' +\n    prevLine +\n    '\\n\\n#Shorts #n8n #أتمتة #ذكاء_اصطناعي',\n  tags: ['n8n', 'أتمتة', 'ai automation', 'تعلم n8n']\n    .concat(Array.isArray(d.tags) ? d.tags : []).slice(0, 10).join(',')\n};\n\nconst wc = t => String(t).trim().split(/\\s+/).length;\n\nlet scenes = d.scenes.slice(0, 9).map(s => ({\n  text: String(s.text),\n  keywords: String(s.keywords || 'code on screen')\n}));\n\nconst MAX_WORDS = 105;\nlet total = scenes.reduce((a, s) => a + wc(s.text), 0);\nwhile (total > MAX_WORDS && scenes.length > 4) {\n  const removed = scenes.splice(scenes.length - 2, 1)[0];\n  total -= wc(removed.text);\n}\n\nreturn scenes.map((s, i) => ({\n  json: { ...meta, idx: i, text: s.text, keywords: s.keywords }\n}));"
+      },
+      "id": "4fbe59d7-1dae-42ff-acc9-87fc92ca1e14",
+      "name": "Parse Script",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://pixabay.com/api/videos/?q={{ encodeURIComponent($json.keywords) }}&video_type=film&safesearch=true&per_page=5",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "options": {}
+      },
+      "id": "efb9a65a-9d7a-4dbf-8fbc-2ec2ff3dc9e2",
+      "name": "Pixabay Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1552,
+        2240
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const VOICE = 'ar-SA-HamedNeural';   // غيّر الصوت من هون إذا بدك (مثلا ar-EG-ShakirNeural)\n\nconst scenesIn = $('Parse Script').all().map(i => i.json);\nconst pex = $input.all();\n\n// مرشحين لكل مشهد (id + رابط)\nfunction candidates(res) {\n  const hits = (res.json && res.json.hits) || [];\n  const out = [];\n  for (const h of hits.slice(0, 5)) {\n    const v = h.videos || {};\n    const u = (v.medium && v.medium.url) || (v.large && v.large.url) || (v.small && v.small.url);\n    if (u) out.push({ id: h.id, url: u });\n  }\n  return out;\n}\n\n// اختيار مقطع مختلف لكل مشهد قدر الإمكان\nconst used = new Set();\nconst clips = pex.map(res => {\n  const list = candidates(res);\n  const fresh = list.filter(c => !used.has(c.id));\n  const pool = fresh.length ? fresh : list;\n  if (!pool.length) return null;\n  const c = pool[Math.floor(Math.random() * pool.length)];\n  used.add(c.id);\n  return c.url;\n});\n\nconst fallback = clips.find(Boolean);\nif (!fallback) throw new Error('ما لقيت أي مقطع من Pixabay');\n\nconst scenes = scenesIn.map((s, i) => ({\n  elements: [\n    { type: 'video', src: clips[i] || fallback, resize: 'cover', duration: -2, loop: -1, muted: true },\n    { type: 'voice', text: s.text, voice: VOICE, model: 'azure' }\n  ]\n}));\n\nconst movie = {\n  resolution: 'custom',\n  width: 1080,\n  height: 1920,\n  quality: 'high',\n  scenes,\n  elements: [\n    { type: 'subtitles', language: 'ar', settings: { style: 'classic', position: 'mid-bottom-center', 'font-size': 80 } }\n  ]\n};\n\nconst m = scenesIn[0];\nreturn [{ json: { movie, topic: m.topic, title: m.title, description: m.description, tags: m.tags } }];"
+      },
+      "id": "3de1c97e-f4ea-4c3c-95c9-8944ff3b6220",
+      "name": "Build Movie",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.json2video.com/v2/movies",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.movie) }}",
+        "options": {}
+      },
+      "id": "d3007845-a098-4e66-aced-8486ffa8b940",
+      "name": "Create Movie",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 60
+      },
+      "id": "cbfca277-d793-41d0-854e-1e25da5d3dbf",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2224,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.json2video.com/v2/movies?project={{ $('Create Movie').first().json.project }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "8589c1e8-734c-457f-a61d-3b6932e31526",
+      "name": "Get Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2448,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const m = $input.first().json.movie || {};\nif (m.status === 'error') throw new Error('JSON2Video error: ' + (m.message || 'unknown'));\nif ($runIndex > 25) throw new Error('انتهت مهلة الرندر');\nreturn [{ json: { status: m.status, url: m.url || null } }];"
+      },
+      "id": "16938132-c2e9-4b98-b45e-dcc323bae633",
+      "name": "Check Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2672,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "done",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "20aab8ff-7727-41fe-8e46-76837a65d61d",
+      "name": "Is Done?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2896,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $('Config').first().json.requireApproval }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b4629a52-259f-48ac-b29c-983555cb5a97",
+      "name": "Need Approval?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        2128
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Check Status').last().json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "c00a1f1b-bc71-417d-a923-291e615d020f",
+      "name": "Download MP4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3792,
+        2128
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $('Build Movie').first().json.title }}",
+        "regionCode": "US",
+        "categoryId": "27",
+        "options": {
+          "defaultLanguage": "ar",
+          "description": "={{ $('Build Movie').first().json.description }}",
+          "privacyStatus": "={{ $('Config').first().json.privacy }}",
+          "selfDeclaredMadeForKids": false,
+          "tags": "={{ $('Build Movie').first().json.tags }}"
+        }
+      },
+      "id": "93ac0649-ee4d-48f5-a1c8-f9d55d1fbc45",
+      "name": "YouTube Upload",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        4016,
+        2128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const m = $('Build Movie').first().json;\nconst yt = $input.first().json;\nconst id = yt.id || yt.videoId || yt.uploadId;\nreturn [{ json: {\n  topic: m.topic,\n  title: m.title,\n  youtube_url: id ? 'https://youtu.be/' + id : 'uploaded-id-unknown',\n  date: new Date().toISOString().slice(0, 10)\n}}];"
+      },
+      "id": "566a6a1c-32aa-44b6-9fc3-445981a292d6",
+      "name": "Prepare Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4240,
+        2128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "2f573390-97db-4761-930b-f5d12f2c60a8",
+      "name": "Log to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        4464,
+        2128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const m = $('Build Movie').first().json;\nreturn [{ json: {\n  job_id: 'j' + Date.now(),\n  video_url: $('Check Status').last().json.url,\n  title: m.title,\n  description: m.description,\n  tags: m.tags,\n  topic: m.topic,\n  privacy: $('Config').first().json.privacy\n}}];"
+      },
+      "id": "8a295ca6-92b9-455c-b996-3bb825002056",
+      "name": "Prepare Pending",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3344,
+        1968
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Pending"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "dcfccf73-3d87-4704-967b-6d53e20e25c2",
+      "name": "Save Pending",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3568,
+        1968
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=🎬 الدرس جاهز للمراجعة\n\n{{ $('Prepare Pending').first().json.title }}\n\nرابط المعاينة:\n{{ $('Prepare Pending').first().json.video_url }}\n\nننشره على يوتيوب؟",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✅ نشر",
+                    "additionalFields": {
+                      "callback_data": "=pub:{{ $('Prepare Pending').first().json.job_id }}"
+                    }
+                  },
+                  {
+                    "text": "❌ إلغاء",
+                    "additionalFields": {
+                      "callback_data": "=cancel:{{ $('Prepare Pending').first().json.job_id }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "77e2427b-2c2e-40da-82f4-d161a861deec",
+      "name": "Telegram Ask",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3792,
+        1968
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Get Past Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Past Topics": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "Google Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Script": {
+      "main": [
+        [
+          {
+            "node": "Parse Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Script": {
+      "main": [
+        [
+          {
+            "node": "Pixabay Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pixabay Search": {
+      "main": [
+        [
+          {
+            "node": "Build Movie",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Movie": {
+      "main": [
+        [
+          {
+            "node": "Create Movie",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Movie": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Get Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Status": {
+      "main": [
+        [
+          {
+            "node": "Check Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Status": {
+      "main": [
+        [
+          {
+            "node": "Is Done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Done?": {
+      "main": [
+        [
+          {
+            "node": "Need Approval?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Need Approval?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download MP4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download MP4": {
+      "main": [
+        [
+          {
+            "node": "YouTube Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube Upload": {
+      "main": [
+        [
+          {
+            "node": "Prepare Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Log": {
+      "main": [
+        [
+          {
+            "node": "Log to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Pending": {
+      "main": [
+        [
+          {
+            "node": "Save Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Pending": {
+      "main": [
+        [
+          {
+            "node": "Telegram Ask",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Hebron"
+  },
+  "active": false
+}

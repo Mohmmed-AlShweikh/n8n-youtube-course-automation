@@ -1,0 +1,52 @@
+{
+  "name": "YouTube Course - Error Notifier",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1f2b1030-848f-4155-b2f2-8db0ce87072e",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=⚠️ فشل نشر الفيديو\n\nالـ Workflow: {{ $json.workflow.name }}\nالـ Node: {{ $json.execution.lastNodeExecuted }}\nالخطأ: {{ $json.execution.error.message }}\nالتنفيذ: {{ $json.execution.url }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "83f89c89-25a5-4ada-adf3-10ff59c69596",
+      "name": "Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Hebron"
+  },
+  "active": false
+}
